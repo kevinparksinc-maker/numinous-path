@@ -9,3 +9,4 @@
 - [x] Review mobile layout and complete the first deliverable checkpoint.
 - [x] Resolve the final lint warning in the reading screen.
 - [x] Optimize generated icon copies to satisfy the project checkpoint size limit.
+- [x] Correct the app-wide dark background and text-contrast rendering issue.
