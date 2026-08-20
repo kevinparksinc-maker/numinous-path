@@ -18,6 +18,7 @@ const MAPPING = {
   "sparkles": "auto-awesome",
   "book.closed.fill": "menu-book",
   "gearshape.fill": "settings",
+  "message.fill": "chat-bubble",
   "paperplane.fill": "send",
   "chevron.left.forwardslash.chevron.right": "code",
   "chevron.right": "chevron-right",

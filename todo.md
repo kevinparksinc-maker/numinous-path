@@ -18,3 +18,11 @@
 - [x] Calibrate the reading voice to the supplied concise, image-first past-present-future example.
 - [x] Ground the reading voice specifically in the covenantal, scriptural character of the God of the Bible.
 - [x] Resolve the reading-engine template compilation issue discovered during voice-framework integration.
+- [x] Add a conversational AI chat that retains the active reading and spreads context.
+- [x] Add spoken playback for readings and conversational replies.
+- [x] Add selectable Tarot spread layouts beyond a single-card draw.
+- [x] Add manual card-entry mode for readings drawn from a physical deck.
+- [x] Resolve the companion endpoint response-type compilation issue.
+- [x] Resolve the typed route reference for opening the companion tab.
+- [x] Add deterministic tests for the companion server route and multi-card physical-deck data.
+- [x] Repair the hoisted mock setup in the companion route test.

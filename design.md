@@ -46,3 +46,21 @@ The application stores readings only on the device. A reading includes an identi
 ## Interaction and accessibility principles
 
 The application uses familiar iOS patterns: a native bottom tab bar, large rounded primary controls, readable type, safe-area-aware layouts, low-amplitude press feedback, and minimum 44-point touch targets. It avoids strobing or aggressive animation. The reading text is always selectable visually through generous line spacing and contrast, while the decision-support language remains invitational rather than directive.
+
+## Conversational reading companion
+
+The reading experience grows into a dedicated **Companion** tab and a contextual sheet from every completed reading. The companion keeps the active cards, positions, user intention, and prior turns in view while the user asks natural follow-up questions. It answers in the same first-person biblical-theological reading voice as the interpretation itself, rather than reverting to a generic assistant voice. The initial answer remains a reading, while follow-up turns deepen a specific image, tension, reversal, or decision without repeating the entire reading.
+
+| Screen or state | Primary content and functionality |
+|---|---|
+| **Spread selection** | Offers One Card, Three Card, Past–Present–Future, Relationship, and Celtic Cross. Each option states its positions and card count before the user begins. |
+| **Draw method** | Lets the user choose “Draw in Numinous Path” or “I have my own cards.” The first path draws cards from the internal deck; the second opens the physical-card picker. |
+| **Physical-card picker** | Shows the current position, an optional reversed toggle, a card-name search field, and the full Tarot card list. The user can move position by position until the spread is complete. |
+| **Reading with audio** | Shows the completed cards and one continuous interpretation. A clear Listen/Stop control reads the reflection aloud using the device voice. |
+| **Companion** | Presents the active reading context in a compact header, a transcript of the conversation, a text composer, a send action, and Listen controls on assistant responses. |
+
+## Conversation and audio behavior
+
+The chat receives only the user’s current conversation and active reading context. It does not pretend to know facts outside what the user writes or the cards supplied. Every assistant response retains the governing guardrails: it grounds claims in the visible symbol; distinguishes surface appearance from underlying matter; does not give divine permission or commands for irreversible choices; and directs the user toward time, counsel, consequences, and safety when appropriate.
+
+Spoken playback uses the device’s native text-to-speech voice. The Listen control changes to Stop while speech is active, speaks only one response at a time, and makes no claim that the playback is a recorded divine voice. On iOS, users may need to turn off silent mode for speech to be audible.
