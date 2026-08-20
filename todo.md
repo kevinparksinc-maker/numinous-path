@@ -11,3 +11,4 @@
 - [x] Optimize generated icon copies to satisfy the project checkpoint size limit.
 - [x] Correct the app-wide dark background and text-contrast rendering issue.
 - [x] Apply global root-canvas styling so the night-ink background renders consistently on web preview.
+- [x] Set an explicit native background on ScreenContainer to remove the remaining preview mismatch.
