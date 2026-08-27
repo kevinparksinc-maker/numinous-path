@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import path from "node:path";
 import { createServer } from "http";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
@@ -10,11 +11,6 @@ import { createContext } from "./context";
 async function startServer() {
   const app = express();
   
-  // Root route to fix the "Cannot GET /" error
-  app.get('/', (req, res) => {
-    res.send('Hello! Your backend is working!');
-  });
-
   const server = createServer(app);
 
   // Enable CORS for all routes - reflect the request origin to support credentials
@@ -55,6 +51,20 @@ async function startServer() {
       createContext,
     }),
   );
+
+  // Serve the Expo web export after API routes, so /api/* remains a backend
+  // route while browser navigation is served from the static web build.
+  const webBuildPath = path.resolve(process.cwd(), "dist/web");
+  app.use(express.static(webBuildPath));
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api/")) {
+      return next();
+    }
+
+    res.sendFile(path.join(webBuildPath, "index.html"), (error) => {
+      if (error) next(error);
+    });
+  });
 
   // FIXED PORT LOGIC: Use Railway's PORT and listen on 0.0.0.0
   const port = parseInt(process.env.PORT || "3000");
