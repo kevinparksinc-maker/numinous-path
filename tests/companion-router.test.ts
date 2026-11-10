@@ -25,6 +25,24 @@ describe("companion router", () => {
     invokeLLM.mockReset();
   });
 
+  it("returns a safe, actionable error when the AI key is missing", async () => {
+    invokeLLM.mockRejectedValue(new Error("GROQ_NOT_CONFIGURED: Set GROQ_API_KEY in Render."));
+    const caller = appRouter.createCaller({ user: null, req: {} as never, res: {} as never });
+    await expect(caller.companion.reply({
+      reading,
+      messages: [{ role: "user", content: "How do these cards connect?" }],
+    })).rejects.toThrow("AI_NOT_CONFIGURED");
+  });
+
+  it("does not expose arbitrary upstream errors to the browser", async () => {
+    invokeLLM.mockRejectedValue(new Error("secret upstream request content"));
+    const caller = appRouter.createCaller({ user: null, req: {} as never, res: {} as never });
+    await expect(caller.companion.reply({
+      reading,
+      messages: [{ role: "user", content: "Explain the spread" }],
+    })).rejects.toThrow("AI_PROVIDER_ERROR");
+  });
+
   it("passes the active spread and recent conversation to the server-side model", async () => {
     invokeLLM.mockResolvedValue({ choices: [{ message: { content: "I have set the three images before you." } }] });
     const caller = appRouter.createCaller({ user: null, req: {} as never, res: {} as never });
