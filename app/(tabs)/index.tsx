@@ -6,6 +6,7 @@ import { router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { haptic } from "@/lib/haptics";
 import { createReading, type ReadingMethod } from "@/lib/reading-engine";
+import { buildTarotFallback } from "@/lib/tarot-fallback";
 import { setActiveReading } from "@/lib/active-reading-store";
 import { stopSpeech, toggleSpeech } from "@/lib/speech";
 import { drawCards, TAROT_DECK, TAROT_SPREADS, type TarotSpread } from "@/lib/tarot-spreads";
@@ -41,6 +42,7 @@ export default function PathScreen() {
   const [manualReversed, setManualReversed] = useState(false);
   const [reading, setReading] = useState<ActiveReading | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [aiUnavailable, setAiUnavailable] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   const companion = trpc.companion.reply.useMutation();
@@ -49,6 +51,33 @@ export default function PathScreen() {
   const go = (next: Stage) => {
     haptic.light();
     setStage(next);
+  };
+
+  // Interpret a complete, already-drawn spread. Keep its actual cards and
+  // positions intact if a second AI attempt is needed.
+  const completeTarotReading = async (active: ActiveReading) => {
+    setIsGenerating(true);
+    setAiUnavailable(false);
+    setStage("reading");
+    try {
+      const result = await companion.mutateAsync({
+        reading: active,
+        messages: [{ role: "user", content: "Give the integrated reading for this full spread. Speak as one continuous address with no headings or card-by-card labels. Ground it in the actual images of every card before revealing the one larger arc." }],
+      });
+      if (!result.message?.trim()) throw new Error("AI returned an empty reading");
+      const completed = { ...active, initialReading: result.message };
+      setReading(completed);
+      await setActiveReading(completed);
+      haptic.success();
+    } catch {
+      const completed = { ...active, initialReading: buildTarotFallback(active.cards, active.intention) };
+      setReading(completed);
+      setAiUnavailable(true);
+      // Do not lose the reading or the selected cards when Groq is unavailable.
+      await setActiveReading(completed);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const createActiveTarotReading = async (cards: CardSelection[]) => {
@@ -61,22 +90,7 @@ export default function PathScreen() {
       cards,
       initialReading: "",
     };
-    setIsGenerating(true);
-    setStage("reading");
-    try {
-      const result = await companion.mutateAsync({
-        reading: active,
-        messages: [{ role: "user", content: "Give the integrated reading for this full spread. Speak as one continuous address with no headings or card-by-card labels. Ground it in the actual images of every card before revealing the one larger arc." }],
-      });
-      const completed = { ...active, initialReading: result.message };
-      setReading(completed);
-      await setActiveReading(completed);
-      haptic.success();
-    } catch {
-      setReading({ ...active, initialReading: "The companion could not complete this reading just now. Your cards remain held here; try again when the connection returns." });
-    } finally {
-      setIsGenerating(false);
-    }
+    await completeTarotReading(active);
   };
 
   const drawInApp = () => {
@@ -131,6 +145,7 @@ export default function PathScreen() {
     setManualCards([]);
     setManualIndex(0);
     setReading(null);
+    setAiUnavailable(false);
     setIsSpeaking(false);
     go("home");
   };
@@ -157,7 +172,7 @@ export default function PathScreen() {
   }
 
   if (stage === "reading") {
-    return <ScreenContainer className="p-5" containerClassName="bg-[#101321]"><ProgressHeader step="YOUR READING" onBack={() => void beginAgain()} /><ScrollView contentContainerStyle={styles.readingContent} showsVerticalScrollIndicator={false}>{isGenerating ? <View style={styles.loadingReading}><ActivityIndicator color="#C6A86A" size="large" /><Text style={styles.loadingTitle}>The companion is reading the whole spread.</Text><Text style={styles.loadingCopy}>It is holding each image together before speaking.</Text></View> : reading ? <><View style={styles.readingSpreadHeader}><Text style={styles.symbolMethod}>{reading.spreadName.toUpperCase()}</Text><Text style={styles.readingCount}>{reading.cards.length} {reading.cards.length === 1 ? "CARD" : "CARDS"}</Text></View><View style={styles.cardStack}>{reading.cards.map((card) => <View key={`${card.position}-${card.card}`} style={styles.readingCard}><Text style={styles.positionName}>{card.position}</Text><Text style={styles.cardName}>{card.card}{card.reversed ? " · Reversed" : ""}</Text></View>)}</View><View style={styles.audioRow}><Pressable onPress={() => void listen()} style={({ pressed }) => [styles.listenButton, pressed && styles.pressed]}><MaterialIcons name={isSpeaking ? "stop" : "volume-up"} size={20} color="#101321" /><Text style={styles.listenText}>{isSpeaking ? "Stop listening" : "Listen"}</Text></Pressable><Text style={styles.audioHint}>Uses your device voice</Text></View><Text style={styles.readingKicker}>AN ADDRESS FOR THIS MOMENT</Text><Text style={styles.reflection}>{reading.initialReading}</Text><Pressable onPress={() => router.push("/(tabs)/companion")} style={({ pressed }) => [styles.companionButton, pressed && styles.pressed]}><View style={styles.companionIcon}><MaterialIcons name="chat-bubble" size={20} color="#C6A86A" /></View><View style={styles.companionCopy}><Text style={styles.companionTitle}>Continue with the companion</Text><Text style={styles.companionSub}>Ask about a card, a position, or what the spread is asking of you.</Text></View><MaterialIcons name="chevron-right" size={22} color="#AEB3C0" /></Pressable><PrimaryButton label="Begin another reading" onPress={() => void beginAgain()} icon="refresh" muted /></> : null}</ScrollView></ScreenContainer>;
+    return <ScreenContainer className="p-5" containerClassName="bg-[#101321]"><ProgressHeader step="YOUR READING" onBack={() => void beginAgain()} /><ScrollView contentContainerStyle={styles.readingContent} showsVerticalScrollIndicator={false}>{isGenerating ? <View style={styles.loadingReading}><ActivityIndicator color="#C6A86A" size="large" /><Text style={styles.loadingTitle}>The companion is reading the whole spread.</Text><Text style={styles.loadingCopy}>It is holding each image together before speaking.</Text></View> : reading ? <><View style={styles.readingSpreadHeader}><Text style={styles.symbolMethod}>{reading.spreadName.toUpperCase()}</Text><Text style={styles.readingCount}>{reading.cards.length} {reading.cards.length === 1 ? "CARD" : "CARDS"}</Text></View><View style={styles.cardStack}>{reading.cards.map((card) => <View key={`${card.position}-${card.card}`} style={styles.readingCard}><Text style={styles.positionName}>{card.position}</Text><Text style={styles.cardName}>{card.card}{card.reversed ? " · Reversed" : ""}</Text></View>)}</View><View style={styles.audioRow}><Pressable onPress={() => void listen()} style={({ pressed }) => [styles.listenButton, pressed && styles.pressed]}><MaterialIcons name={isSpeaking ? "stop" : "volume-up"} size={20} color="#101321" /><Text style={styles.listenText}>{isSpeaking ? "Stop listening" : "Listen"}</Text></Pressable><Text style={styles.audioHint}>Uses your device voice</Text></View>{aiUnavailable && reading.method === "tarot" && <View style={{ marginTop: 18, padding: 14, borderRadius: 12, backgroundColor: "#272230", borderColor: "#725B36", borderWidth: 1 }}><Text style={{ color: "#F2DDAE", fontWeight: "700", marginBottom: 7 }}>AI unavailable — showing your card-based reading</Text><Text style={{ color: "#C9C4BD", lineHeight: 20, marginBottom: 12 }}>This reading is based on the cards you drew, not a Groq response. Your spread is saved. You can retry the AI without drawing again.</Text><Pressable disabled={isGenerating} onPress={() => void completeTarotReading(reading)} style={{ paddingVertical: 10, borderRadius: 8, backgroundColor: "#C6A86A", alignItems: "center" }}><Text style={{ color: "#101321", fontWeight: "800" }}>Retry with Groq AI</Text></Pressable></View>}<Text style={styles.readingKicker}>AN ADDRESS FOR THIS MOMENT</Text><Text style={styles.reflection}>{reading.initialReading}</Text><Pressable onPress={() => router.push("/(tabs)/companion")} style={({ pressed }) => [styles.companionButton, pressed && styles.pressed]}><View style={styles.companionIcon}><MaterialIcons name="chat-bubble" size={20} color="#C6A86A" /></View><View style={styles.companionCopy}><Text style={styles.companionTitle}>Continue with the companion</Text><Text style={styles.companionSub}>Ask about a card, a position, or what the spread is asking of you.</Text></View><MaterialIcons name="chevron-right" size={22} color="#AEB3C0" /></Pressable><PrimaryButton label="Begin another reading" onPress={() => void beginAgain()} icon="refresh" muted /></> : null}</ScrollView></ScreenContainer>;
   }
 
   return <ScreenContainer className="p-5" containerClassName="bg-[#101321]"><ScrollView contentContainerStyle={styles.homeContent} showsVerticalScrollIndicator={false}><View style={styles.homeTopline}><Text style={styles.brand}>NUMINOUS PATH</Text><View style={styles.privatePill}><MaterialIcons name="lock-outline" size={13} color="#C6A86A" /><Text style={styles.privatePillText}>PRIVATE</Text></View></View><View style={styles.homeHero}><View style={styles.homeMark}><View style={styles.markGlow} /><MaterialIcons name="nightlight-round" size={42} color="#F5F0E6" /></View><Text style={styles.homeTitle}>Make room for what is asking to be heard.</Text><Text style={styles.homeSubtitle}>Choose a spread, draw here or enter your own cards, then keep the conversation open.</Text></View><View style={styles.homeNote}><MaterialIcons name="info-outline" size={19} color="#7D9077" /><Text style={styles.homeNoteText}>A reading offers reflection, not a verdict. Your life remains your own.</Text></View><View style={styles.homeSpacer} /><PrimaryButton label="Begin a reading" onPress={() => go("intention")} /><Text style={styles.homeFooter}>TAROT · I CHING · COMPANION · LOCAL JOURNAL</Text></ScrollView></ScreenContainer>;
