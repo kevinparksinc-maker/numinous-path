@@ -43,6 +43,27 @@ describe("companion router", () => {
     })).rejects.toThrow("AI_PROVIDER_ERROR");
   });
 
+  it("accepts previously saved lengthy lunar evidence without schema rejection", async () => {
+    invokeLLM.mockResolvedValue({ choices: [{ message: { content: "A synthesized answer." } }] });
+    const caller = appRouter.createCaller({ user: null, req: {} as never, res: {} as never });
+    const result = await caller.companion.reply({
+      reading: {
+        ...reading,
+        method: "lunar",
+        cards: [{ position: "The matter", card: "Four of Pentacles", reversed: false }],
+        initialReading: "Evidence paragraph. ".repeat(750),
+      },
+      messages: [
+        { role: "assistant", content: "Earlier lengthy reading. ".repeat(220) },
+        { role: "user", content: "What does it mean?" },
+      ],
+    });
+    expect(result.message).toBe("A synthesized answer.");
+    const request = invokeLLM.mock.calls[0][0];
+    expect(request.messages[0].content).toContain("Four of Pentacles");
+    expect(request.messages[1].content.length).toBeLessThanOrEqual(3000);
+  });
+
   it("passes the active spread and recent conversation to the server-side model", async () => {
     invokeLLM.mockResolvedValue({ choices: [{ message: { content: "I have set the three images before you." } }] });
     const caller = appRouter.createCaller({ user: null, req: {} as never, res: {} as never });
