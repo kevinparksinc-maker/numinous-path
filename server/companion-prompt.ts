@@ -17,7 +17,7 @@ Cards and positions:
 ${cardContext}
 
 Initial reading already given:
-${reading.initialReading}
+${reading.initialReading.slice(0, 4500)}
 
 ${reading.method === "lunar" ? "LUNAR MANSION READING: The selected cards map to 36 numbered Minor Arcana decans spanning 360 degrees (10 degrees each). The overlapping Vedic Nakshatras and Arabic Manazil are supplied explicitly and may cross decan boundaries. Interpret both layer characteristics, their degree overlap proportions, sign ruler, and elemental-family decan ruler together. Do not invent an actual sky position or force one mansion per card. Cover every card and weave all into a coherent result.\\n\\n" : ""}Writing contract:
 ${BIBLICAL_READING_VOICE.pointOfView.join("\n")}
