@@ -40,6 +40,36 @@ async function verifyGroqAtStartup(): Promise<void> {
     console.info(hasModel
       ? "[Groq status] READY: credentials accepted and configured model is available."
       : "[Groq status] MODEL_UNAVAILABLE: credentials accepted, configured model not in accessible list.");
+    if (hasModel) {
+      // A single tiny generation probe verifies inference, not merely /models.
+      // Never log the prompt, token, response body, or sensitive reading data.
+      const probeController = new AbortController();
+      const probeTimer = setTimeout(() => probeController.abort(), 25000);
+      try {
+        const result = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{role:"user",content:"Reply with the word OK."}],
+            max_completion_tokens: 128,
+            stream: false,
+          }),
+          signal: probeController.signal,
+        });
+        console.info(result.ok
+          ? "[Groq inference] READY: chat completions endpoint accepted a generation request."
+          : `[Groq inference] HTTP_${result.status}: chat completions request rejected.`);
+        await result.body?.cancel();
+      } catch {
+        console.warn("[Groq inference] NETWORK_OR_TIMEOUT: chat completion probe unsuccessful.");
+      } finally {
+        clearTimeout(probeTimer);
+      }
+    }
   } catch {
     console.warn("[Groq status] NETWORK_OR_TIMEOUT: could not contact Groq at startup.");
   } finally {

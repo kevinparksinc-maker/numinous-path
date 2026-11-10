@@ -49,7 +49,7 @@ export default function CompanionScreen() {
       await setConversation(completed);
       haptic.success();
     } catch (error) {
-      const code = error instanceof Error && /^AI_[A-Z_]+:/.test(error.message) ? error.message : "The AI request failed. Check Render service logs or your network connection.";
+      const code = error instanceof Error ? (error.message.match(/AI_[A-Z_]+:[^\\n]*/)?.[0] || (error.message.includes("BAD_REQUEST") ? "The reading payload was rejected by the server. Refresh and try again." : error.message.slice(0, 240))) : "The AI request failed. Check Render service logs or your network connection.";
       setServiceError(code);
       // Keep the question editable; do not save an error as if it were an AI answer.
       setDraft(prompt);

@@ -30,6 +30,12 @@ export const API_BASE_URL = env.apiBaseUrl;
  * URL pattern: https://PORT-sandboxid.region.domain
  */
 export function getApiBaseUrl(): string {
+  // Numinous Path's deployed web app serves API and frontend on the same
+  // Render origin. Never let stale Expo/Manus URLs override that in production.
+  if (ReactNative.Platform.OS === "web" && typeof window !== "undefined" && window.location?.hostname?.endsWith(".onrender.com")) {
+    return window.location.origin;
+  }
+
   // If API_BASE_URL is set, use it
   if (API_BASE_URL) {
     return API_BASE_URL.replace(/\/$/, "");
