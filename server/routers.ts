@@ -47,7 +47,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const response = await invokeLLM({
-          model: "claude-sonnet-4-6",
+          model: process.env.GROQ_API_KEY ? (process.env.GROQ_MODEL || "openai/gpt-oss-120b") : "claude-sonnet-4-6",
           maxTokens: 850,
           messages: [
             { role: "system", content: buildCompanionPrompt(input.reading) },
