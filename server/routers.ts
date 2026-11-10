@@ -18,12 +18,12 @@ const activeReadingSchema = z.object({
     card: z.string().min(1).max(120),
     reversed: z.boolean(),
   })).min(1).max(10),
-  initialReading: z.string().max(9000),
+  initialReading: z.string().max(50000),
 });
 
 const companionMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
-  content: z.string().min(1).max(3000),
+  content: z.string().min(1).max(50000),
 });
 
 export const appRouter = router({
@@ -53,7 +53,7 @@ export const appRouter = router({
             maxTokens: input.reading.method === "lunar" ? 2400 : 850,
             messages: [
               { role: "system", content: buildCompanionPrompt(input.reading) },
-              ...input.messages.slice(-12),
+              ...input.messages.slice(-12).map(message => ({ ...message, content: message.content.slice(0, 3000) })),
             ],
           });
           const content = response.choices[0]?.message?.content;
