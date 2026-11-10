@@ -1,4 +1,4 @@
-export type ReadingMethod = "tarot" | "iching";
+export type ReadingMethod = "tarot" | "iching" | "lunar";
 
 export type CardSelection = {
   position: string;
