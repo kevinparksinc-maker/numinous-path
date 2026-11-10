@@ -317,7 +317,59 @@ const fetchWithBackoff = async (url: string, init: FetchInit): Promise<Response>
     : new Error("LLM request failed after exhausting retries");
 };
 
+// Numinous Path's AI companion uses Groq through the server only.
+// No browser code should ever receive GROQ_API_KEY.
+async function invokeGroq(params: InvokeParams): Promise<InvokeResult> {
+  if (!ENV.groqApiKey) throw new Error("GROQ_NOT_CONFIGURED: Set GROQ_API_KEY in Render.");
+  const payload: Record<string, unknown> = {
+    model: ENV.groqModel,
+    messages: params.messages.map(normalizeMessage),
+    max_tokens: Math.min(params.max_tokens ?? params.maxTokens ?? 850, 4096),
+    stream: false,
+  };
+  if (params.tools?.length) {
+    payload.tools = params.tools;
+    const choice = normalizeToolChoice(params.toolChoice ?? params.tool_choice, params.tools);
+    if (choice) payload.tool_choice = choice;
+  }
+  const format = normalizeResponseFormat(params);
+  if (format) payload.response_format = format;
+
+  // Limit request time and never retry a rate limit automatically: the free tier
+  // should not be hammered by queued retries.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60_000);
+  let response: Response;
+  try {
+    response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${ENV.groqApiKey}`,
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error("GROQ_TIMEOUT: The AI service did not respond in time.");
+    throw new Error("GROQ_NETWORK_ERROR: Could not reach Groq.");
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!response.ok) {
+    // Do not expose upstream response bodies or accidental user reading data.
+    if (response.status === 429) throw new Error("GROQ_RATE_LIMITED: Try again after the provider limit resets.");
+    if (response.status === 401 || response.status === 403) throw new Error("GROQ_AUTH_FAILED: Verify GROQ_API_KEY in Render.");
+    throw new Error(`GROQ_REQUEST_FAILED: HTTP ${response.status}.`);
+  }
+  const result = (await response.json()) as InvokeResult;
+  const answer = result.choices?.[0]?.message?.content;
+  if (typeof answer !== "string" || !answer.trim()) throw new Error("GROQ_EMPTY_RESPONSE: The companion received no text.");
+  return result;
+}
+
 export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
+  if (ENV.aiPrimaryProvider === "groq" || ENV.groqApiKey) return invokeGroq(params);
   assertApiKey();
 
   const {
