@@ -17,6 +17,7 @@ export default function CompanionScreen() {
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [serviceError, setServiceError] = useState<string | null>(null);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const companion = trpc.companion.reply.useMutation();
 
@@ -37,6 +38,7 @@ export default function CompanionScreen() {
     const next = [...messages, userMessage];
     setMessages(next);
     setDraft("");
+    setServiceError(null);
     setSending(true);
     haptic.light();
     try {
@@ -46,11 +48,12 @@ export default function CompanionScreen() {
       setMessages(completed);
       await setConversation(completed);
       haptic.success();
-    } catch {
-      const failed: CompanionMessage = { id: `assistant-error-${Date.now()}`, role: "assistant", content: "The companion could not answer just now. The reading remains here; try again when the connection returns.", createdAt: new Date().toISOString() };
-      const completed = [...next, failed];
-      setMessages(completed);
-      await setConversation(completed);
+    } catch (error) {
+      const code = error instanceof Error && /^AI_[A-Z_]+:/.test(error.message) ? error.message : "The AI request failed. Check Render service logs or your network connection.";
+      setServiceError(code);
+      // Keep the question editable; do not save an error as if it were an AI answer.
+      setDraft(prompt);
+      setMessages(messages);
     } finally {
       setSending(false);
     }
@@ -64,9 +67,9 @@ export default function CompanionScreen() {
 
   if (loading) return <ScreenContainer containerClassName="bg-[#101321]"><View style={styles.center}><ActivityIndicator color="#C6A86A" /></View></ScreenContainer>;
 
-  if (!reading) return <ScreenContainer className="p-5" containerClassName="bg-[#101321]"><View style={styles.empty}><View style={styles.emptyIcon}><MaterialIcons name="chat-bubble-outline" size={29} color="#C6A86A" /></View><Text style={styles.emptyTitle}>The companion begins with a reading.</Text><Text style={styles.emptyCopy}>Choose a Tarot spread or an I Ching address first. Then return here to ask about any card, position, or question that remains open.</Text><Pressable onPress={() => router.push("/")} style={({ pressed }) => [styles.begin, pressed && styles.pressed]}><Text style={styles.beginText}>Begin a reading</Text><MaterialIcons name="arrow-forward" size={18} color="#101321" /></Pressable></View></ScreenContainer>;
+  if (!reading) return <ScreenContainer className="p-5" containerClassName="bg-[#101321]"><View style={styles.empty}><View style={styles.emptyIcon}><MaterialIcons name="chat-bubble-outline" size={29} color="#C6A86A" /></View><Text style={styles.emptyTitle}>The companion begins with a reading.</Text><Text style={styles.emptyCopy}>Choose a Tarot, Lunar Mansion, or I Ching reading first. Then return here to ask about any card, position, or question that remains open.</Text><Pressable onPress={() => router.push("/")} style={({ pressed }) => [styles.begin, pressed && styles.pressed]}><Text style={styles.beginText}>Begin a reading</Text><MaterialIcons name="arrow-forward" size={18} color="#101321" /></Pressable></View></ScreenContainer>;
 
-  return <ScreenContainer containerClassName="bg-[#101321]"><KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}><FlatList data={messages} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled" renderItem={({ item }) => <View style={[styles.messageRow, item.role === "user" && styles.userRow]}><View style={[styles.bubble, item.role === "user" ? styles.userBubble : styles.assistantBubble]}><Text style={[styles.messageText, item.role === "user" ? styles.userText : styles.assistantText]}>{item.content}</Text>{item.role === "assistant" && <Pressable onPress={() => void speak(item)} style={({ pressed }) => [styles.speak, pressed && styles.pressed]}><MaterialIcons name={speakingId === item.id ? "stop" : "volume-up"} size={16} color="#C6A86A" /><Text style={styles.speakText}>{speakingId === item.id ? "Stop" : "Listen"}</Text></Pressable>}</View></View>} ListHeaderComponent={<View style={styles.header}><Text style={styles.eyebrow}>ACTIVE READING</Text><Text style={styles.title}>Companion</Text><Text style={styles.cards}>{reading.spreadName} · {reading.cards.map((card) => card.card).join(" · ")}</Text><Text style={styles.intention}>{reading.intention ? `“${reading.intention}”` : "Ask what remains open in the reading."}</Text></View>} ListFooterComponent={sending ? <View style={styles.typing}><ActivityIndicator size="small" color="#C6A86A" /><Text style={styles.typingText}>The companion is considering the cards…</Text></View> : null} /><View style={styles.composer}><TextInput value={draft} onChangeText={setDraft} placeholder="Ask about this reading…" placeholderTextColor="#7F8797" style={styles.composerInput} multiline returnKeyType="send" onSubmitEditing={() => void send()} /><Pressable disabled={!draft.trim() || sending} onPress={() => void send()} style={({ pressed }) => [styles.send, (!draft.trim() || sending) && styles.sendDisabled, pressed && styles.pressed]}><MaterialIcons name="arrow-upward" size={20} color="#101321" /></Pressable></View></KeyboardAvoidingView></ScreenContainer>;
+  return <ScreenContainer containerClassName="bg-[#101321]"><KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}><FlatList data={messages} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled" renderItem={({ item }) => <View style={[styles.messageRow, item.role === "user" && styles.userRow]}><View style={[styles.bubble, item.role === "user" ? styles.userBubble : styles.assistantBubble]}><Text style={[styles.messageText, item.role === "user" ? styles.userText : styles.assistantText]}>{item.content}</Text>{item.role === "assistant" && <Pressable onPress={() => void speak(item)} style={({ pressed }) => [styles.speak, pressed && styles.pressed]}><MaterialIcons name={speakingId === item.id ? "stop" : "volume-up"} size={16} color="#C6A86A" /><Text style={styles.speakText}>{speakingId === item.id ? "Stop" : "Listen"}</Text></Pressable>}</View></View>} ListHeaderComponent={<View style={styles.header}><Text style={styles.eyebrow}>ACTIVE READING</Text><Text style={styles.title}>Companion</Text><Text style={styles.cards}>{reading.spreadName} · {reading.cards.map((card) => card.card).join(" · ")}</Text><Text style={styles.intention}>{reading.intention ? `“${reading.intention}”` : "Ask what remains open in the reading."}</Text></View>} ListFooterComponent={sending ? <View style={styles.typing}><ActivityIndicator size="small" color="#C6A86A" /><Text style={styles.typingText}>The companion is considering the cards…</Text></View> : null} />{serviceError && <View style={{ backgroundColor: "#33252B", padding: 12, marginHorizontal: 16, borderRadius: 10, gap: 5 }}><Text style={{ color: "#F8C6B8", fontWeight: "700" }}>Companion could not connect</Text><Text style={{ color: "#E8CFCC" }}>{serviceError}</Text><Text style={{ color: "#E8CFCC" }}>Your question is still below. Tap send to retry.</Text></View>}<View style={styles.composer}><TextInput value={draft} onChangeText={setDraft} placeholder="Ask about this reading…" placeholderTextColor="#7F8797" style={styles.composerInput} multiline returnKeyType="send" onSubmitEditing={() => void send()} /><Pressable disabled={!draft.trim() || sending} onPress={() => void send()} style={({ pressed }) => [styles.send, (!draft.trim() || sending) && styles.sendDisabled, pressed && styles.pressed]}><MaterialIcons name="arrow-upward" size={20} color="#101321" /></Pressable></View></KeyboardAvoidingView></ScreenContainer>;
 }
 
 const styles = StyleSheet.create({
