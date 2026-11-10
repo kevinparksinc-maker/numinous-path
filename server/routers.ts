@@ -5,6 +5,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { buildCompanionPrompt } from "./companion-prompt";
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 
 const activeReadingSchema = z.object({
   id: z.string().min(1),
@@ -46,18 +47,40 @@ export const appRouter = router({
         messages: z.array(companionMessageSchema).min(1).max(12),
       }))
       .mutation(async ({ input }) => {
-        const response = await invokeLLM({
-          model: process.env.GROQ_API_KEY ? (process.env.GROQ_MODEL || "openai/gpt-oss-120b") : "claude-sonnet-4-6",
-          maxTokens: input.reading.method === "lunar" ? 2400 : 850,
-          messages: [
-            { role: "system", content: buildCompanionPrompt(input.reading) },
-            ...input.messages.slice(-12),
-          ],
-        });
-        const content = response.choices[0]?.message?.content;
-        const message = typeof content === "string" ? content.trim() : "";
-        if (!message) throw new Error("The companion did not return a response.");
-        return { message };
+        try {
+          const response = await invokeLLM({
+            model: process.env.GROQ_API_KEY ? (process.env.GROQ_MODEL || "openai/gpt-oss-120b") : "claude-sonnet-4-6",
+            maxTokens: input.reading.method === "lunar" ? 2400 : 850,
+            messages: [
+              { role: "system", content: buildCompanionPrompt(input.reading) },
+              ...input.messages.slice(-12),
+            ],
+          });
+          const content = response.choices[0]?.message?.content;
+          const message = typeof content === "string" ? content.trim() : "";
+          if (!message) throw new Error("GROQ_EMPTY_RESPONSE: No text returned.");
+          return { message };
+        } catch (error) {
+          // Never return raw provider error bodies or request data.
+          const detail = error instanceof Error ? error.message : "";
+          const code =
+            detail.includes("GROQ_NOT_CONFIGURED") || detail.includes("not configured") ? "AI_NOT_CONFIGURED" :
+            detail.includes("GROQ_AUTH_FAILED") ? "AI_AUTH_FAILED" :
+            detail.includes("GROQ_RATE_LIMITED") ? "AI_RATE_LIMITED" :
+            detail.includes("GROQ_TIMEOUT") ? "AI_TIMEOUT" :
+            detail.includes("GROQ_EMPTY_RESPONSE") ? "AI_EMPTY_RESPONSE" :
+            "AI_PROVIDER_ERROR";
+          console.warn("[Companion] AI provider failure:", code);
+          const userMessages: Record<string,string> = {
+            AI_NOT_CONFIGURED: "AI_NOT_CONFIGURED: Numinous Path needs GROQ_API_KEY in Render environment settings.",
+            AI_AUTH_FAILED: "AI_AUTH_FAILED: The Groq API key was rejected. Check the key in Render.",
+            AI_RATE_LIMITED: "AI_RATE_LIMITED: Groq's usage limit was reached. Please retry later.",
+            AI_TIMEOUT: "AI_TIMEOUT: Groq took too long. Your reading remains saved.",
+            AI_EMPTY_RESPONSE: "AI_EMPTY_RESPONSE: Groq returned no reading text. Please retry.",
+            AI_PROVIDER_ERROR: "AI_PROVIDER_ERROR: The AI service could not complete this request. Check the Render logs.",
+          };
+          throw new TRPCError({ code: "SERVICE_UNAVAILABLE", message: userMessages[code] });
+        }
       }),
   }),
 
