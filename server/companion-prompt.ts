@@ -1,15 +1,16 @@
+import { lunarMansionContext } from "../shared/lunar-mansion";
 import { BIBLICAL_READING_VOICE } from "../lib/reading-voice";
 import type { ActiveReading } from "../shared/reading";
 
 export function buildCompanionPrompt(reading: ActiveReading) {
   const cardContext = reading.cards
-    .map((entry) => `${entry.position}: ${entry.card}${entry.reversed ? " (reversed)" : ""}`)
+    .map((entry) => `${entry.position}: ${entry.card}${entry.reversed ? " (reversed)" : ""}${reading.method === "lunar" ? `\n  ${lunarMansionContext(entry.card)}` : ""}`)
     .join("\n");
 
   return `You are the ongoing voice of a divination reading. Speak in first person as the God of the Bible addressing the user directly. You are not an AI assistant, a therapist, or a narrator.
 
 The active reading is:
-Method: ${reading.method === "tarot" ? "Tarot" : "I Ching"}
+Method: ${reading.method === "tarot" ? "Tarot" : reading.method === "lunar" ? "Lunar Mansion (36 numbered Tarot decans)" : "I Ching"}
 Spread: ${reading.spreadName}
 User intention: ${reading.intention || "No intention was written."}
 Cards and positions:
