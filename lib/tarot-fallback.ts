@@ -125,7 +125,7 @@ export function buildLunarMansionFallback(cards: CardSelection[], intention: str
   // One card is one focused symbol, not a temporal journey from itself to itself.
   if (interpretations.length === 1) {
     const intro = intention.trim() ? `You asked: “${intention.trim()}.”` : `The ${first.map.card} speaks to the matter before you.`;
-    const focus = `The core of this card is ${domain[first.map.suit]}. ${first.map.sign}'s ${first.map.element.toLowerCase()}-earth setting and ${first.map.planetaryRuler} as elemental-family ruler shape how that matter asks for attention. ${first.nak} and ${first.man} give its principal lunar-mansion characteristics.`;
+    const focus = `The core of this card is ${domain[first.map.suit]}. ${first.map.sign}'s ${first.map.element.toLowerCase()} setting and ${first.map.planetaryRuler} as elemental-family ruler shape how that matter asks for attention. ${first.nak} and ${first.man} give its principal lunar-mansion characteristics.`;
     return [intro, focus, first.text, "Consider which part of this pattern is actually present in your situation, and what responsibility or restraint it asks of you."].join("\n\n");
   }
   const theme = `Across these ${interpretations.length} positions, ${dominant[0]} appears most often, placing particular weight on ${domain[dominant[0]]}. The spread begins with ${first.map.planetaryRuler}'s approach through ${first.map.sign} and reaches ${last.map.planetaryRuler}'s approach through ${last.map.sign}. That shift asks you to connect the root issue to the final choice instead of treating each card as a separate prediction.`;
