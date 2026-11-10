@@ -69,15 +69,61 @@ export function buildTarotFallback(cards: CardSelection[], intention: string): s
   return `${question}${sections.join("\n\n")}\n\nRead together, these images do not dictate the future. They ask you to distinguish what is already happening from what you can choose next. Compare the pattern with your actual circumstances, and make the consequential choice with care.`;
 }
 
-/** Full evidence-based lunar-decan reading when the external AI cannot reply. */
+/** An integrated symbolic reading using the mapped card layers when AI is unreachable.
+ * Exact overlap percentages remain in the visible per-card evidence, not repeated
+ * in the prose. This does not claim an actual moon position or oracle certainty.
+ */
 export function buildLunarMansionFallback(cards: CardSelection[], intention: string): string {
-  const intro = intention.trim() ? `You asked about “${intention.trim()}.” ` : "";
-  const parts = cards.map(({position,card,reversed})=>{
+  const interpretations = cards.map(({ position, card, reversed }) => {
     const map = getLunarMansionCard(card);
-    if(!map)return `In ${position}, ${card} has no decan correspondence in this 36-card mode.`;
-    const naks=map.nakshatras.map(n=>`${n.name} (${n.sharePercent}% of this decan, ${n.ruler}: ${n.traits})`).join("; ");
-    const mans=map.manazil.map(m=>`${m.name} (${m.sharePercent}%: ${m.traits})`).join("; ");
-    return `In ${position}, ${card} occupies ${map.sign} decan ${map.decan} (${map.longitudeStart}°–${map.longitudeEnd}° of the complete wheel). Its ${map.element} suit expresses the ${map.signRuler}-ruled sign through ${map.familySign}, giving an elemental-family sub-ruler of ${map.planetaryRuler}. The overlapping Vedic Nakshatras are ${naks}. The overlapping Arabic Manazil are ${mans}. ${reversed?"Reversed, these motifs describe friction, delay, or inward work rather than an assured outcome.":"Consider where these combined qualities show up in the situation before you."}`;
-  });
-  return `${intro}${parts.join("\n\n")}\n\nRead the positions as one developing matter: the elemental setting describes its arena, the rulers describe how it unfolds, and the lunar mansions give their contrasting characteristics. This symbolic correspondence is not a live astronomical reading or a certain prediction.`;
+    if (!map) return null;
+    const strongestNak = [...map.nakshatras].sort((a,b) => b.sharePercent-a.sharePercent)[0];
+    const strongestMan = [...map.manazil].sort((a,b) => b.sharePercent-a.sharePercent)[0];
+    const otherNak = map.nakshatras.find(n => n.name !== strongestNak?.name);
+    const otherMan = map.manazil.find(n => n.name !== strongestMan?.name);
+    const suitLife: Record<string, string> = {
+      Wands: "your initiative, purpose, and the courage to move",
+      Cups: "your emotional bonds, hopes, and what your heart keeps carrying",
+      Swords: "your decisions, language, boundaries, and the truth you must face",
+      Pentacles: "your resources, livelihood, obligations, and what you are building",
+    };
+    const positionMove: Record<string, string> = {
+      "The heart of it": "At the center of the matter",
+      "What crosses it": "What complicates this",
+      "What is beneath": "Beneath what is visible",
+      "What is behind": "What you have been moving away from",
+      "What is above": "The standard you are reaching toward",
+      "What approaches": "The next challenge to prepare for",
+      "Your stance": "Your present posture",
+      "The field around you": "The people and conditions around you",
+      "Hope and fear": "Where longing and fear meet",
+      "Where it is leading": "The direction suggested by the final image",
+    };
+    const lead = positionMove[position] ?? `In ${position.toLowerCase()}`;
+    const secondary = [
+      otherNak ? `${otherNak.name} adds ${otherNak.traits.charAt(0).toLowerCase() + otherNak.traits.slice(1)}` : "",
+      otherMan ? `${otherMan.name} adds ${otherMan.traits.charAt(0).toLowerCase() + otherMan.traits.slice(1)}` : "",
+    ].filter(Boolean).join(" ");
+    const reversedLine = reversed
+      ? "Because this card is reversed, examine where those qualities are delayed, resisted, or turned inward before pressing ahead."
+      : "The question is how consciously you can put those qualities into practice, not whether the card guarantees an outcome.";
+    const text = `${lead}, ${card} brings ${suitLife[map.suit]} into ${map.sign}'s ${map.element.toLowerCase()}-colored decan, shaped by ${map.planetaryRuler} through ${map.familySign}. ${strongestNak.name} emphasizes ${strongestNak.traits.charAt(0).toLowerCase() + strongestNak.traits.slice(1)} ${strongestMan.name} speaks of ${strongestMan.traits.charAt(0).toLowerCase() + strongestMan.traits.slice(1)} ${secondary} ${reversedLine}`;
+    return { map, position, text: text.replace(/\\s+/g," ").trim(), nak: strongestNak.name, man: strongestMan.name };
+  }).filter((p): p is NonNullable<typeof p> => p !== null);
+  if (!interpretations.length) return "No numbered-decan cards were present to interpret.";
+  const counts = interpretations.reduce<Record<string,number>>((sum,p)=>{
+    sum[p.map.suit]=(sum[p.map.suit]??0)+1; return sum;
+  },{});
+  const dominant = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+  const domain: Record<string,string> = {
+    Wands:"initiative and decisive action",
+    Cups:"relationships, emotional debts, and attachment",
+    Swords:"truth, strategy, and difficult decisions",
+    Pentacles:"resources, limits, and lasting responsibilities",
+  };
+  const first = interpretations[0], last=interpretations[interpretations.length-1];
+  const theme = `Across these ${interpretations.length} positions, ${dominant[0]} appears most often, placing particular weight on ${domain[dominant[0]]}. The spread begins with ${first.map.planetaryRuler}'s approach through ${first.map.sign} and reaches ${last.map.planetaryRuler}'s approach through ${last.map.sign}. That shift asks you to connect the root issue to the final choice instead of treating each card as a separate prediction.`;
+  const closing = `The thread from ${first.nak} and ${first.man} to ${last.nak} and ${last.man} points to a change in emphasis, not a certain future. Check this symbolic account against the real facts of your situation and decide what deserves action, restraint, or release.`;
+  const opening = intention.trim() ? `You asked: “${intention.trim()}.”` : "Here is the movement of the whole spread.";
+  return [opening, theme, ...interpretations.map(x=>x.text), closing].join("\\n\\n");
 }
