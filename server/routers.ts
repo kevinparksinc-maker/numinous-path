@@ -9,7 +9,7 @@ import { z } from "zod";
 const activeReadingSchema = z.object({
   id: z.string().min(1),
   createdAt: z.string().min(1),
-  method: z.enum(["tarot", "iching"]),
+  method: z.enum(["tarot", "iching", "lunar"]),
   spreadName: z.string().min(1).max(120),
   intention: z.string().max(1200),
   cards: z.array(z.object({
