@@ -11,7 +11,7 @@ describe("Lunar Mansion 36-decan mode", () => {
     expect(reading).toContain("Four of Pentacles");
     expect(reading).toContain("Dhanishta");
     expect(reading).toContain("Sa’d Bula’");
-    expect(reading).toContain("\\n\\n".replace(/\\\\n/g, "\\n")); 
+    expect(reading.split("\n\n").length).toBeGreaterThan(2);
     expect(reading).not.toContain(String.raw`\\n\\n`);
     expect(reading).not.toContain("Across these 1 positions");
     expect(reading).not.toContain("That shift asks");
