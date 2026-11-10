@@ -8,6 +8,45 @@ import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 
+/**
+ * Non-mutating startup diagnostics. Only safe status codes are logged.
+ * A GET to Groq's models endpoint verifies connectivity and authentication
+ * without generating text or publishing the configured key.
+ */
+async function verifyGroqAtStartup(): Promise<void> {
+  const apiKey = process.env.GROQ_API_KEY?.trim();
+  const model = process.env.GROQ_MODEL?.trim() || "openai/gpt-oss-120b";
+  if (!apiKey) {
+    console.warn("[Groq status] NOT_CONFIGURED: GROQ_API_KEY is absent from Numinous Path's Render environment.");
+    return;
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/models", {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: controller.signal,
+    });
+    if (response.status === 401 || response.status === 403) {
+      console.warn("[Groq status] AUTH_REJECTED: the configured key cannot authenticate.");
+      return;
+    }
+    if (!response.ok) {
+      console.warn(`[Groq status] PROVIDER_HTTP_${response.status}: model availability not verified.`);
+      return;
+    }
+    const data = await response.json() as { data?: Array<{ id?: string }> };
+    const hasModel = data.data?.some(item => item.id === model);
+    console.info(hasModel
+      ? "[Groq status] READY: credentials accepted and configured model is available."
+      : "[Groq status] MODEL_UNAVAILABLE: credentials accepted, configured model not in accessible list.");
+  } catch {
+    console.warn("[Groq status] NETWORK_OR_TIMEOUT: could not contact Groq at startup.");
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function startServer() {
   const app = express();
   
@@ -71,6 +110,7 @@ async function startServer() {
 
   server.listen(port, '0.0.0.0', () => {
     console.log(`[api] server listening on port ${port}`);
+    void verifyGroqAtStartup();
   });
 }
 
