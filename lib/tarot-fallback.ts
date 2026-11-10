@@ -1,3 +1,4 @@
+import { getLunarMansionCard } from "../shared/lunar-mansion";
 import type { CardSelection } from "../shared/reading";
 
 /**
@@ -66,4 +67,17 @@ export function buildTarotFallback(cards: CardSelection[], intention: string): s
   const sections = cards.map((card) => `In the position of ${card.position.toLowerCase()}, ${interpret(card)}`);
   const question = intention.trim() ? `You asked about “${intention.trim()}.” ` : "";
   return `${question}${sections.join("\n\n")}\n\nRead together, these images do not dictate the future. They ask you to distinguish what is already happening from what you can choose next. Compare the pattern with your actual circumstances, and make the consequential choice with care.`;
+}
+
+/** Full evidence-based lunar-decan reading when the external AI cannot reply. */
+export function buildLunarMansionFallback(cards: CardSelection[], intention: string): string {
+  const intro = intention.trim() ? `You asked about “${intention.trim()}.” ` : "";
+  const parts = cards.map(({position,card,reversed})=>{
+    const map = getLunarMansionCard(card);
+    if(!map)return `In ${position}, ${card} has no decan correspondence in this 36-card mode.`;
+    const naks=map.nakshatras.map(n=>`${n.name} (${n.sharePercent}% of this decan, ${n.ruler}: ${n.traits})`).join("; ");
+    const mans=map.manazil.map(m=>`${m.name} (${m.sharePercent}%: ${m.traits})`).join("; ");
+    return `In ${position}, ${card} occupies ${map.sign} decan ${map.decan} (${map.longitudeStart}°–${map.longitudeEnd}° of the complete wheel). Its ${map.element} suit expresses the ${map.signRuler}-ruled sign through ${map.familySign}, giving an elemental-family sub-ruler of ${map.planetaryRuler}. The overlapping Vedic Nakshatras are ${naks}. The overlapping Arabic Manazil are ${mans}. ${reversed?"Reversed, these motifs describe friction, delay, or inward work rather than an assured outcome.":"Consider where these combined qualities show up in the situation before you."}`;
+  });
+  return `${intro}${parts.join("\\n\\n")}\\n\\nRead the positions as one developing matter: the elemental setting describes its arena, the rulers describe how it unfolds, and the lunar mansions give their contrasting characteristics. This symbolic correspondence is not a live astronomical reading or a certain prediction.`;
 }
