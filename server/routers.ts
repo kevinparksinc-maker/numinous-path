@@ -9,7 +9,7 @@ import { z } from "zod";
 const activeReadingSchema = z.object({
   id: z.string().min(1),
   createdAt: z.string().min(1),
-  method: z.enum(["tarot", "iching"]),
+  method: z.enum(["tarot", "iching", "lunar"]),
   spreadName: z.string().min(1).max(120),
   intention: z.string().max(1200),
   cards: z.array(z.object({
@@ -48,7 +48,7 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const response = await invokeLLM({
           model: process.env.GROQ_API_KEY ? (process.env.GROQ_MODEL || "openai/gpt-oss-120b") : "claude-sonnet-4-6",
-          maxTokens: 850,
+          maxTokens: input.reading.method === "lunar" ? 2400 : 850,
           messages: [
             { role: "system", content: buildCompanionPrompt(input.reading) },
             ...input.messages.slice(-12),
