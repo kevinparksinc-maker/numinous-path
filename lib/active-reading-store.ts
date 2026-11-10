@@ -33,7 +33,14 @@ export async function getConversation(): Promise<CompanionMessage[]> {
 
   try {
     const messages = JSON.parse(raw) as CompanionMessage[];
-    return Array.isArray(messages) ? messages : [];
+    // Legacy builds stored transient provider errors as if the AI had answered.
+    // Keep real questions/readings, but do not replay those errors as divination.
+    return Array.isArray(messages) ? messages.filter(message => !(
+      message.role === "assistant" && (
+        message.id.startsWith("assistant-error-") ||
+        message.content === "The companion could not answer just now. The reading remains here; try again when the connection returns."
+      )
+    )) : [];
   } catch {
     return [];
   }

@@ -108,7 +108,7 @@ export function buildLunarMansionFallback(cards: CardSelection[], intention: str
       ? "Because this card is reversed, examine where those qualities are delayed, resisted, or turned inward before pressing ahead."
       : "The question is how consciously you can put those qualities into practice, not whether the card guarantees an outcome.";
     const text = `${lead}, ${card} brings ${suitLife[map.suit]} into ${map.sign}'s ${map.element.toLowerCase()}-colored decan, shaped by ${map.planetaryRuler} through ${map.familySign}. ${strongestNak.name} emphasizes ${strongestNak.traits.charAt(0).toLowerCase() + strongestNak.traits.slice(1)} ${strongestMan.name} speaks of ${strongestMan.traits.charAt(0).toLowerCase() + strongestMan.traits.slice(1)} ${secondary} ${reversedLine}`;
-    return { map, position, text: text.replace(/\\s+/g," ").trim(), nak: strongestNak.name, man: strongestMan.name };
+    return { map, position, text: text.replace(/\s+/g," ").trim(), nak: strongestNak.name, man: strongestMan.name };
   }).filter((p): p is NonNullable<typeof p> => p !== null);
   if (!interpretations.length) return "No numbered-decan cards were present to interpret.";
   const counts = interpretations.reduce<Record<string,number>>((sum,p)=>{
@@ -122,8 +122,14 @@ export function buildLunarMansionFallback(cards: CardSelection[], intention: str
     Pentacles:"resources, limits, and lasting responsibilities",
   };
   const first = interpretations[0], last=interpretations[interpretations.length-1];
+  // One card is one focused symbol, not a temporal journey from itself to itself.
+  if (interpretations.length === 1) {
+    const intro = intention.trim() ? `You asked: “${intention.trim()}.”` : `The ${first.map.card} speaks to the matter before you.`;
+    const focus = `The core of this card is ${domain[first.map.suit]}. ${first.map.sign}'s ${first.map.element.toLowerCase()} setting and ${first.map.planetaryRuler} as elemental-family ruler shape how that matter asks for attention. ${first.nak} and ${first.man} give its principal lunar-mansion characteristics.`;
+    return [intro, focus, first.text, "Consider which part of this pattern is actually present in your situation, and what responsibility or restraint it asks of you."].join("\n\n");
+  }
   const theme = `Across these ${interpretations.length} positions, ${dominant[0]} appears most often, placing particular weight on ${domain[dominant[0]]}. The spread begins with ${first.map.planetaryRuler}'s approach through ${first.map.sign} and reaches ${last.map.planetaryRuler}'s approach through ${last.map.sign}. That shift asks you to connect the root issue to the final choice instead of treating each card as a separate prediction.`;
   const closing = `The thread from ${first.nak} and ${first.man} to ${last.nak} and ${last.man} points to a change in emphasis, not a certain future. Check this symbolic account against the real facts of your situation and decide what deserves action, restraint, or release.`;
   const opening = intention.trim() ? `You asked: “${intention.trim()}.”` : "Here is the movement of the whole spread.";
-  return [opening, theme, ...interpretations.map(x=>x.text), closing].join("\\n\\n");
+  return [opening, theme, ...interpretations.map(x=>x.text), closing].join("\n\n");
 }

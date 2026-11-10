@@ -4,6 +4,19 @@ import { buildLunarMansionFallback } from "../lib/tarot-fallback";
 import { buildCompanionPrompt } from "../server/companion-prompt";
 
 describe("Lunar Mansion 36-decan mode", () => {
+  it("writes a focused single-card reading with real paragraph breaks", () => {
+    const reading = buildLunarMansionFallback(
+      [{position:"The matter",card:"Four of Pentacles",reversed:false}], ""
+    );
+    expect(reading).toContain("Four of Pentacles");
+    expect(reading).toContain("Dhanishta");
+    expect(reading).toContain("Sa’d Bula’");
+    expect(reading.split("\n\n").length).toBeGreaterThan(2);
+    expect(reading).not.toContain(String.raw`\\n\\n`);
+    expect(reading).not.toContain("Across these 1 positions");
+    expect(reading).not.toContain("That shift asks");
+  });
+
   it("maps 36 unique numbered minor cards onto the complete 360-degree zodiac", () => {
     expect(LUNAR_MANSION_DECK).toHaveLength(36);
     const cards = LUNAR_MANSION_DECK.map(name => getLunarMansionCard(name)!);
